@@ -13,19 +13,19 @@ Usage
 
 	arptest [options] iface ipaddr
 
-iface  : interface to send/receive ARP packets from/to
-ipaddr : IP address of host to test
+> iface  : interface to send/receive ARP packets from/to  
+> ipaddr : IP address of host to test  
 
 ### Options
 
--w : timeout for receiving ARP reply
+> -w : timeout for receiving ARP reply  
 
 ### Return Values
 
-ERR_SUCCESS = 0 : success
-ERR_FAIL    = 1 : timeout reached, no reply
-ERR_ARGS    = 2 : error in command parameters
-ERR_SYS     = 3 : system error
+> ERR_SUCCESS = 0 : success  
+> ERR_FAIL    = 1 : timeout reached, no reply  
+> ERR_ARGS    = 2 : error in command parameters  
+> ERR_SYS     = 3 : system error  
 
 In case of any error besides ERR_FAIL, output will be printed to stderr
 describing the error.
