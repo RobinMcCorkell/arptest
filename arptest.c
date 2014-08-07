@@ -27,6 +27,7 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <netinet/if_ether.h>
+#include <netinet/ether.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +44,8 @@
 #define ERR_ARGS 2
 #define ERR_SYS 3
 
+struct ether_addr broadcast_addr;
+
 void usage(const char *prog) {
 	fprintf(stderr,
 		"Usage:\n"
@@ -50,6 +53,7 @@ void usage(const char *prog) {
 		"\n"
 		"Options:\n"
 		"  -w timeout: set timeout in seconds\n"
+		"  -m macaddr: send ARP to macaddr instead of broadcast, in hex-colon format\n"
 		, prog);
 }
 
@@ -65,9 +69,11 @@ int check_reply(const struct ether_arp *req, const struct ether_arp *reply) {
 	) {
 		return ERR_FAIL;
 	}
-	if (strncmp(reply->arp_spa, req->arp_tpa, sizeof(req->arp_tpa)) == 0
-	 && strncmp(reply->arp_tha, req->arp_sha, sizeof(req->arp_sha)) == 0
-	 && strncmp(reply->arp_tpa, req->arp_spa, sizeof(req->arp_spa)) == 0
+	if (memcmp(reply->arp_spa, req->arp_tpa, sizeof(req->arp_tpa)) == 0
+	 && memcmp(reply->arp_tha, req->arp_sha, sizeof(req->arp_sha)) == 0
+	 && memcmp(reply->arp_tpa, req->arp_spa, sizeof(req->arp_spa)) == 0
+	 && (memcmp(req->arp_tha, broadcast_addr.ether_addr_octet, sizeof(req->arp_tha)) == 0
+	  || memcmp(reply->arp_sha, req->arp_tha, sizeof(req->arp_tha)) == 0)
 	) {
 		return ERR_SUCCESS;
 	} else {
@@ -76,12 +82,15 @@ int check_reply(const struct ether_arp *req, const struct ether_arp *reply) {
 }
 
 int main(int argc, char **argv) {
+	memset(broadcast_addr.ether_addr_octet, -1, ETH_ALEN);
+
 	struct device iface;
 	struct in_addr ipaddr;
+	struct ether_addr macaddr = broadcast_addr;
 	unsigned int timeout = 1;
 
 	int ch;
-	while ((ch = getopt(argc, argv, "w:")) != -1) {
+	while ((ch = getopt(argc, argv, "w:m:")) != -1) {
 		switch (ch) {
 		case 'w':
 			timeout = atoi(optarg);
@@ -89,6 +98,15 @@ int main(int argc, char **argv) {
 				fprintf(stderr, "Invalid timeout '%s'\n", optarg);
 				return ERR_ARGS;
 			}
+			break;
+		case 'm':
+			;
+			struct ether_addr *macaddr_p = ether_aton(optarg);
+			if (macaddr_p == NULL) {
+				fprintf(stderr, "Invalid MAC address '%s'\n", optarg);
+				return ERR_ARGS;
+			}
+			macaddr = *macaddr_p;
 			break;
 		default:
 			usage(argv[0]);
@@ -144,7 +162,7 @@ int main(int argc, char **argv) {
 	}
 
 	addr.sll_halen = ETHER_ADDR_LEN;
-	memset(addr.sll_addr, -1, ETHER_ADDR_LEN);
+	memcpy(addr.sll_addr, macaddr.ether_addr_octet, ETH_ALEN);
 
 	/* construct arp request */
 	struct ether_arp req;
@@ -156,7 +174,7 @@ int main(int argc, char **argv) {
 
 	memcpy(req.arp_sha, me.sll_addr, sizeof(req.arp_sha));
 	memset(req.arp_spa, 0, sizeof(req.arp_spa));
-	memset(req.arp_tha, 0, sizeof(req.arp_tha));
+	memcpy(req.arp_tha, macaddr.ether_addr_octet, sizeof(req.arp_tha));
 	memcpy(req.arp_tpa, &ipaddr.s_addr, sizeof(req.arp_tpa));
 
 	/* send and receive */

@@ -18,7 +18,8 @@ Usage
 
 ### Options
 
-> -w : timeout for receiving ARP reply  
+> -w timeout : set timeout in seconds
+> -m macaddr : send ARP to macaddr instead of broadcast, in hex-colon format
 
 ### Return Values
 
