@@ -119,7 +119,6 @@ int main(int argc, char **argv) {
 	int sock = socket(AF_PACKET, SOCK_DGRAM, 0);
 	if (sock == -1) {
 		perror("socket");
-		fprintf(stderr, "Check this program has sufficient privileges\n");
 		return ERR_SYS;
 	}
 
