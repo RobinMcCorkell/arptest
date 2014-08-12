@@ -67,8 +67,8 @@ int check_reply(const struct ether_arp *req, const struct ether_arp *reply) {
 		return ERR_FAIL;
 	}
 	if (memcmp(reply->arp_spa, req->arp_tpa, sizeof(req->arp_tpa)) == 0
-	 && memcmp(reply->arp_tha, req->arp_sha, sizeof(req->arp_sha)) == 0
-	 && memcmp(reply->arp_tpa, req->arp_spa, sizeof(req->arp_spa)) == 0
+/*	 && memcmp(reply->arp_tha, req->arp_sha, sizeof(req->arp_sha)) == 0
+	 && memcmp(reply->arp_tpa, req->arp_spa, sizeof(req->arp_spa)) == 0 */
 	 && (memcmp(req->arp_tha, broadcast_addr.ether_addr_octet, sizeof(req->arp_tha)) == 0
 	  || memcmp(reply->arp_sha, req->arp_tha, sizeof(req->arp_tha)) == 0)
 	) {
