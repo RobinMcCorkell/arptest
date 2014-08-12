@@ -194,28 +194,34 @@ int main(int argc, char **argv) {
 	}
 
 	struct ether_arp response;
+	int ret = ERR_SUCCESS;
 
 	do {
 		int recv_ret = recvfrom(sock, &response, sizeof(response), 0, NULL, NULL);
 		if (recv_ret <= 0) {
 			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				/* no reply, no such host */
-				return ERR_FAIL;
+				/* timeout, no such host */
+				ret = ERR_FAIL;
+				break;
 			} else {
 				perror("recvfrom");
-				return ERR_SYS;
+				ret = ERR_SYS;
+				break;
 			}
 		}
 	} while (check_reply(&req, &response));
 
-	/* success! */
-	printf("%02X:%02X:%02X:%02X:%02X:%02X\n",
-		response.arp_sha[0],
-		response.arp_sha[1],
-		response.arp_sha[2],
-		response.arp_sha[3],
-		response.arp_sha[4],
-		response.arp_sha[5]);
+	if (ret == ERR_SUCCESS) {
+		printf("%02X:%02X:%02X:%02X:%02X:%02X\n",
+			response.arp_sha[0],
+			response.arp_sha[1],
+			response.arp_sha[2],
+			response.arp_sha[3],
+			response.arp_sha[4],
+			response.arp_sha[5]);
+	}
 
-	return ERR_SUCCESS;
+	close(sock);
+
+	return ret;
 }
