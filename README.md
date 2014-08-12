@@ -18,7 +18,7 @@ Usage
 
 ### Options
 
-> -w timeout : set timeout in seconds
+> -w timeout : set timeout in seconds (decimals allowed)
 > -m macaddr : send ARP to macaddr instead of broadcast, in hex-colon format
 
 ### Return Values
