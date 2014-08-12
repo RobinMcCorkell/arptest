@@ -35,7 +35,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <signal.h>
+#include <math.h>
 
 #include "find_device.h"
 
@@ -52,12 +52,9 @@ void usage(const char *prog) {
 		"  %s [options] iface ipaddr\n"
 		"\n"
 		"Options:\n"
-		"  -w timeout: set timeout in seconds\n"
+		"  -w timeout: set timeout in seconds (decimals allowed)\n"
 		"  -m macaddr: send ARP to macaddr instead of broadcast, in hex-colon format\n"
 		, prog);
-}
-
-void null_sighandler(int sig) {
 }
 
 int check_reply(const struct ether_arp *req, const struct ether_arp *reply) {
@@ -87,17 +84,25 @@ int main(int argc, char **argv) {
 	struct device iface;
 	struct in_addr ipaddr;
 	struct ether_addr macaddr = broadcast_addr;
-	unsigned int timeout = 1;
+	struct timeval timeout = { 1, 0 };
 
 	int ch;
 	while ((ch = getopt(argc, argv, "w:m:")) != -1) {
 		switch (ch) {
 		case 'w':
-			timeout = atoi(optarg);
-			if (timeout == 0) {
+			errno = 0;
+			char *remains;
+			double dbl = strtod(optarg, &remains);
+
+			if (errno || *remains != 0 || dbl < 0) {
 				fprintf(stderr, "Invalid timeout '%s'\n", optarg);
 				return ERR_ARGS;
 			}
+
+			double intpart, fractpart;
+			fractpart = modf(dbl, &intpart);
+			timeout.tv_sec = (long)intpart;
+			timeout.tv_usec = (long)(fractpart * 1000000);
 			break;
 		case 'm':
 			;
@@ -137,6 +142,11 @@ int main(int argc, char **argv) {
 	int sock = socket(AF_PACKET, SOCK_DGRAM, 0);
 	if (sock == -1) {
 		perror("socket");
+		return ERR_SYS;
+	}
+
+	if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt");
 		return ERR_SYS;
 	}
 
@@ -183,22 +193,12 @@ int main(int argc, char **argv) {
 		return ERR_SYS;
 	}
 
-	struct sigaction act;
-	act.sa_handler = null_sighandler;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-	if (sigaction(SIGALRM, &act, NULL) < 0) {
-		perror("sigaction");
-		return ERR_SYS;
-	}
-	alarm(timeout);
-
 	struct ether_arp response;
 
 	do {
 		int recv_ret = recvfrom(sock, &response, sizeof(response), 0, NULL, NULL);
 		if (recv_ret <= 0) {
-			if (errno == EINTR) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				/* no reply, no such host */
 				return ERR_FAIL;
 			} else {
