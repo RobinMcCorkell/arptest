@@ -7,7 +7,7 @@ all: arptest
 arptest: arptest.o find_device.o
 
 install: arptest
-	install -T arptest $(DESTDIR)$(bindir)/arptest
+	install -DT arptest $(DESTDIR)$(bindir)/arptest
 
 clean:
 	rm -f arptest *.o
